@@ -1,3 +1,4 @@
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::File;
@@ -21,7 +22,7 @@ struct Entry {
     request: Request,
     common_log: String,
     duration: f32,
-    // ts: f32,
+    ts: f32,
 }
 
 #[derive(Serialize, Debug)]
@@ -51,12 +52,16 @@ fn main() -> io::Result<()> {
     let file = File::open(args[1].clone())?;
     let reader = BufReader::new(file);
     let default: String = "".to_owned();
+    let start = (Utc::now() - Duration::days(60)).timestamp() as f32;
 
     let mut wtr = csv::Writer::from_writer(std::io::stdout());
     for line in reader.lines() {
         let l: String = line.unwrap();
         let parsed = serde_json::from_str::<Entry>(l.as_str());
         if let Ok(v) = parsed {
+            if v.ts < start {
+                continue;
+            }
             let r = GoaRecord {
                 common_log: &v.common_log,
                 referer: unwrap_first(&v.request.headers.referer).unwrap_or(&default),
